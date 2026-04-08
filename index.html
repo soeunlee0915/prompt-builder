@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>프롬프트 빌더 실습</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f9f9f7; color: #1a1a18; }
+
+.container { padding: 1.5rem 1rem; max-width: 720px; margin: 0 auto; }
+
+.phase { display: none; }
+.phase.active { display: block; }
+
+.title { font-size: 18px; font-weight: 500; color: #1a1a18; margin-bottom: 0.4rem; }
+.subtitle { font-size: 14px; color: #666; margin-bottom: 1.5rem; line-height: 1.6; }
+
+.question-box {
+  background: #f1efe8;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.5rem;
+  font-size: 15px;
+  color: #1a1a18;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 1.5rem;
+}
+
+.step-pill {
+  border-radius: 8px;
+  padding: 6px 4px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1.5px solid transparent;
+  transition: all 0.2s;
+}
+.step-pill.done { background: #E1F5EE; color: #0F6E56; border-color: #5DCAA5; }
+.step-pill.active { background: #EEEDFE; color: #3C3489; border-color: #7F77DD; }
+.step-pill.pending { background: #f1efe8; color: #888; border-color: #ddd; }
+.step-pill .letter { font-size: 16px; display: block; font-weight: 600; }
+
+.card-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #888;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 1.25rem;
+}
+
+.option-btn {
+  background: #fff;
+  border: 0.5px solid #ccc;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font-size: 13px;
+  color: #1a1a18;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.5;
+  transition: all 0.15s;
+}
+.option-btn:hover { background: #f1efe8; border-color: #aaa; }
+.option-btn.selected { background: #EEEDFE; border: 2px solid #7F77DD; color: #3C3489; }
+.option-btn .opt-tag { font-size: 11px; color: #888; display: block; margin-bottom: 3px; }
+.option-btn.selected .opt-tag { color: #534AB7; }
+
+.custom-area { margin-bottom: 1.25rem; }
+.custom-area textarea {
+  width: 100%;
+  border: 0.5px solid #ccc;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 13px;
+  color: #1a1a18;
+  background: #fff;
+  resize: none;
+  min-height: 70px;
+  line-height: 1.6;
+  font-family: inherit;
+}
+
+.next-btn {
+  background: #7F77DD;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.65rem 1.5rem;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-right: 8px;
+}
+.next-btn:hover { background: #534AB7; }
+.next-btn:disabled { background: #f1efe8; color: #aaa; cursor: default; }
+
+.skip-btn {
+  background: transparent;
+  color: #888;
+  border: 0.5px solid #ddd;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  font-size: 13px;
+  cursor: pointer;
+}
+.skip-btn:hover { background: #f1efe8; }
+
+.prompt-preview {
+  background: #f1efe8;
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  font-size: 13px;
+  color: #1a1a18;
+  line-height: 1.7;
+  border-left: 3px solid #7F77DD;
+}
+
+.result-box {
+  background: #fff;
+  border: 0.5px solid #ccc;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+.compare-card {
+  border-radius: 12px;
+  padding: 1rem;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.compare-card.before { background: #FCEBEB; border: 0.5px solid #F09595; }
+.compare-card.after { background: #E1F5EE; border: 0.5px solid #5DCAA5; }
+.compare-card .compare-label { font-size: 11px; font-weight: 500; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+.compare-card.before .compare-label { color: #A32D2D; }
+.compare-card.after .compare-label { color: #0F6E56; }
+
+.ask-btn {
+  background: #1D9E75;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.15s;
+  margin-bottom: 10px;
+}
+.ask-btn:hover { background: #0F6E56; }
+
+.restart-btn {
+  background: transparent;
+  color: #888;
+  border: 0.5px solid #ddd;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  font-size: 13px;
+  cursor: pointer;
+  width: 100%;
+}
+.restart-btn:hover { background: #f1efe8; }
+
+.progress-bar {
+  height: 4px;
+  background: #f1efe8;
+  border-radius: 2px;
+  margin-bottom: 1.5rem;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: #7F77DD;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.tip-box {
+  background: #EEEDFE;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  font-size: 12px;
+  color: #534AB7;
+  margin-bottom: 1.25rem;
+  line-height: 1.5;
+}
+
+.copy-btn {
+  background: #7F77DD;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 10px;
+  transition: all 0.15s;
+}
+.copy-btn:hover { background: #534AB7; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="phase active" id="phase-intro">
+  <p class="title">현대자동차 변화에 있어서 협력사 임원으로서 내가 가장 먼저 해야 할 것은 무엇인가?</p>
+  <p class="subtitle">먼저 구조 없이 질문해보고, 이어서 PROMPT 프레임워크로 조립해 봅니다. 두 결과가 어떻게 다른지 직접 확인해 보세요.</p>
+  <div class="question-box">"현대자동차의 변화에 있어서 협력사 임원으로서 내가 가장 먼저 해야 할 것은 무엇인가?"</div>
+  <p class="card-label">1단계 — 구조 없이 그냥 질문해보기</p>
+  <p style="font-size:13px; color:#666; margin-bottom: 1.25rem; line-height:1.6;">위 질문을 AI에게 그대로 던지면 어떤 답이 나올까요? 먼저 한 번 물어보세요.</p>
+  <p style="font-size:13px; background:#fff3cd; border-radius:8px; padding:0.75rem 1rem; margin-bottom:1rem; color:#856404; line-height:1.6;">
+    💡 Claude.ai나 ChatGPT에 위 질문을 직접 입력해 보세요. 답을 확인한 후 아래 버튼을 눌러 프롬프트 구조화를 시작하세요.
+  </p>
+  <button class="next-btn" style="width:100%; margin-right:0;" onclick="goTo('phase-p')">답을 확인했으면 → 프롬프트 구조화 시작</button>
+</div>
+
+<div class="phase" id="phase-p">
+  <div class="progress-bar"><div class="progress-fill" style="width:16%"></div></div>
+  <div class="step-grid">
+    <div class="step-pill active"><span class="letter">P</span>Persona</div>
+    <div class="step-pill pending"><span class="letter">R</span>Reference</div>
+    <div class="step-pill pending"><span class="letter">O</span>Objective</div>
+    <div class="step-pill pending"><span class="letter">M</span>Method</div>
+    <div class="step-pill pending"><span class="letter">P</span>Perspective</div>
+    <div class="step-pill pending"><span class="letter">T</span>Tuning</div>
+  </div>
+  <p class="title">P — Persona <span style="font-weight:400; font-size:14px; color:#666">역할 정의</span></p>
+  <p class="subtitle">AI에게 어떤 전문가 역할을 맡길까요? 역할에 따라 답변의 관점이 달라집니다.</p>
+  <div class="tip-box">전문가 프레임을 줄수록 더 날카로운 답이 나옵니다.</div>
+  <div class="options-grid">
+    <button class="option-btn" onclick="selectOption('p', this, '자동차 산업 디지털 전환 전문가')"><span class="opt-tag">추천</span>자동차 산업 디지털 전환 전문가</button>
+    <button class="option-btn" onclick="selectOption('p', this, 'SDV·AI 전략 컨설턴트')"><span class="opt-tag">추천</span>SDV·AI 전략 컨설턴트</button>
+    <button class="option-btn" onclick="selectOption('p', this, '현대차 협력사 임원 코치')"><span class="opt-tag">추천</span>현대차 협력사 임원 코치</button>
+    <button class="option-btn" onclick="selectOption('p', this, '산업 변화 전략 전문가')"><span class="opt-tag">추천</span>산업 변화 전략 전문가</button>
+  </div>
+  <div class="custom-area">
+    <div class="card-label">직접 입력</div>
+    <textarea id="input-p" placeholder="예: 30년 경력의 자동차 부품업계 전략 전문가" oninput="syncInput('p')"></textarea>
+  </div>
+  <button class="next-btn" id="btn-p" disabled onclick="goTo('phase-r')">다음 →</button>
+</div>
+
+<div class="phase" id="phase-r">
+  <div class="progress-bar"><div class="progress-fill" style="width:33%"></div></div>
+  <div class="step-grid">
+    <div class="step-pill done"><span class="letter">P</span>Persona</div>
+    <div class="step-pill active"><span class="letter">R</span>Reference</div>
+    <div class="step-pill pending"><span class="letter">O</span>Objective</div>
+    <div class="step-pill pending"><span class="letter">M</span>Method</div>
+    <div class="step-pill pending"><span class="letter">P</span>Perspective</div>
+    <div class="step-pill pending"><span class="letter">T</span>Tuning</div>
+  </div>
+  <p class="title">R — Reference <span style="font-weight:400; font-size:14px; color:#666">참고 자료</span></p>
+  <p class="subtitle">어떤 배경 정보를 AI에게 제공할까요? 맥락이 많을수록 답이 구체적으로 바뀝니다.</p>
+  <div class="tip-box">배경 정보가 없으면 AI는 일반론만 말합니다.</div>
+  <div class="options-grid">
+    <button class="option-btn" onclick="selectOption('r', this, '현대차그룹은 2026~2030년 국내 125조, SDV·AI에 50조를 투자하고, Pleos OS 기반 ECU 66% 통합을 추진 중')"><span class="opt-tag">추천</span>현대차 투자계획·SDV 전환 현황</button>
+    <button class="option-btn" onclick="selectOption('r', this, '모셔널 로보택시가 라스베이거스에서 이미 상용화됐고, 2026년 서울 마포에서도 무인 로보택시 운행 예정')"><span class="opt-tag">추천</span>로보택시 상용화 현황</button>
+    <button class="option-btn" onclick="selectOption('r', this, 'ECU 수가 66% 감소하면서 협력사의 하드웨어 납품 구조가 소프트웨어 파트너 구조로 바뀌는 전환점')"><span class="opt-tag">추천</span>협력사 공급구조 변화</button>
+    <button class="option-btn" onclick="selectOption('r', this, '우리 회사는 현재 ECU 부품을 납품하는 1차 협력사이며, 소프트웨어 역량은 아직 초기 단계')"><span class="opt-tag">추천</span>우리 회사 현황 직접 입력</button>
+  </div>
+  <div class="custom-area">
+    <div class="card-label">직접 입력</div>
+    <textarea id="input-r" placeholder="예: 우리 회사는 ECU 납품 1차 협력사이며, 매출의 70%가 내연기관 부품에서 나옴" oninput="syncInput('r')"></textarea>
+  </div>
+  <button class="next-btn" id="btn-r" disabled onclick="goTo('phase-o')">다음 →</button>
+  <button class="skip-btn" onclick="skip('r'); goTo('phase-o')">건너뛰기</button>
+</div>
+
+<div class="phase" id="phase-o">
+  <div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div>
+  <div class="step-grid">
+    <div class="step-pill done"><span class="letter">P</span>Persona</div>
+    <div class="step-pill done"><span class="letter">R</span>Reference</div>
+    <div class="step-pill active"><span class="letter">O</span>Objective</div>
+    <div class="step-pill pending"><span class="letter">M</span>Method</div>
+    <div class="step-pill pending"><span class="letter">P</span>Perspective</div>
+    <div class="step-pill pending"><span class="letter">T</span>Tuning</div>
+  </div>
+  <p class="title">O — Objective <span style="font-weight:400; font-size:14px; color:#666">목표 설정</span></p>
+  <p class="subtitle">이 질문으로 무엇을 얻고 싶으신가요? 목표가 명확할수록 실행 가능한 답이 나옵니다.</p>
+  <div class="tip-box">목표가 명확해야 AI가 답의 범위를 좁혀줍니다.</div>
+  <div class="options-grid">
+    <button class="option-btn" onclick="selectOption('o', this, '지금 당장 내가 실행할 수 있는 우선순위 3가지를 도출하고 싶다')"><span class="opt-tag">추천</span>즉시 실행 가능한 우선순위 도출</button>
+    <button class="option-btn" onclick="selectOption('o', this, '3년 안에 우리 협력사가 SDV 시대에 살아남기 위한 전략 방향을 알고 싶다')"><span class="opt-tag">추천</span>3년 생존 전략 방향 수립</button>
+    <button class="option-btn" onclick="selectOption('o', this, '임원으로서 조직에 전달해야 할 핵심 메시지와 변화 방향을 정리하고 싶다')"><span class="opt-tag">추천</span>조직 전달용 핵심 메시지 도출</button>
+    <button class="option-btn" onclick="selectOption('o', this, '현대차 변화가 우리 회사에 미치는 리스크와 기회를 파악하고 싶다')"><span class="opt-tag">추천</span>리스크·기회 분석</button>
+  </div>
+  <div class="custom-area">
+    <div class="card-label">직접 입력</div>
+    <textarea id="input-o" placeholder="예: 내년 사업계획에 반영할 AI 대응 과제 목록을 만들고 싶다" oninput="syncInput('o')"></textarea>
+  </div>
+  <button class="next-btn" id="btn-o" disabled onclick="goTo('phase-m')">다음 →</button>
+  <button class="skip-btn" onclick="skip('o'); goTo('phase-m')">건너뛰기</button>
+</div>
+
+<div class="phase" id="phase-m">
+  <div class="progress-bar"><div class="progress-fill" style="width:66%"></div></div>
+  <div class="step-grid">
+    <div class="step-pill done"><span class="letter">P</span>Persona</div>
+    <div class="step-pill done"><span class="letter">R</span>Reference</div>
+    <div class="step-pill done"><span class="letter">O</span>Objective</div>
+    <div class="step-pill active"><span class="letter">M</span>Method</div>
+    <div class="step-pill pending"><span class="letter">P</span>Perspective</div>
+    <div class="step-pill pending"><span class="letter">T</span>Tuning</div>
+  </div>
+  <p class="title">M — Method <span style="font-weight:400; font-size:14px; color:#666">결과 형식</span></p>
+  <p class="subtitle">어떤 형태로 답을 받고 싶으신가요? 형식을 지정하면 바로 활용 가능한 결과가 나옵니다.</p>
+  <div class="tip-box">형식을 지정하지 않으면 AI가 알아서 정합니다 — 원하는 형태가 아닐 수 있어요.</div>
+  <div class="options-grid">
+    <button class="option-btn" onclick="selectOption('m', this, '우선순위 순서로 번호가 붙은 실행 항목 리스트로 정리해줘')"><span class="opt-tag">추천</span>번호 매긴 실행 리스트</button>
+    <button class="option-btn" onclick="selectOption('m', this, '단기(3개월)/중기(1년)/장기(3년)로 나눠서 정리해줘')"><span class="opt-tag">추천</span>단기·중기·장기 구분</button>
+    <button class="option-btn" onclick="selectOption('m', this, '각 항목마다 이유와 구체적 첫 번째 행동을 포함해서 알려줘')"><span class="opt-tag">추천</span>이유 + 첫 행동 포함</button>
+    <button class="option-btn" onclick="selectOption('m', this, '표 형태로 항목/중요도/난이도/담당 부서를 정리해줘')"><span class="opt-tag">추천</span>표 형태로 정리</button>
+  </div>
+  <div class="custom-area">
+    <div class="card-label">직접 입력</div>
+    <textarea id="input-m" placeholder="예: A4 한 장 분량으로 요약해줘" oninput="syncInput('m')"></textarea>
+  </div>
+  <button class="next-btn" id="btn-m" disabled onclick="goTo('phase-pt')">다음 →</button>
+  <button class="skip-btn" onclick="skip('m'); goTo('phase-pt')">건너뛰기</button>
+</div>
+
+<div class="phase" id="phase-pt">
+  <div class="progress-bar"><div class="progress-fill" style="width:83%"></div></div>
+  <div class="step-grid">
+    <div class="step-pill done"><span class="letter">P</span>Persona</div>
+    <div class="step-pill done"><span class="letter">R</span>Reference</div>
+    <div class="step-pill done"><span class="letter">O</span>Objective</div>
+    <div class="step-pill done"><span class="letter">M</span>Method</div>
+    <div class="step-pill active"><span class="letter">P</span>Perspective</div>
+    <div class="step-pill pending"><span class="letter">T</span>Tuning</div>
+  </div>
+  <p class="title">P — Perspective <span style="font-weight:400; font-size:14px; color:#666">누가 볼 것인지</span></p>
+  <p class="subtitle">이 답변을 누구의 시각으로, 누가 읽을 것인지 알려주세요.</p>
+  <div class="tip-box">독자와 시각을 지정하면 언어 수준과 초점이 바뀝니다.</div>
+  <div class="options-grid">
+    <button class="option-btn" onclick="selectOption('pt', this, '현대차 협력사의 C레벨 임원 시각에서, 임원 본인이 읽을 것')"><span class="opt-tag">추천</span>협력사 임원이 직접 읽음</button>
+    <button class="option-btn" onclick="selectOption('pt', this, '임원이 팀장들에게 공유할 목적으로, 실무진도 이해할 수 있게')"><span class="opt-tag">추천</span>팀장·실무진에게 전달용</button>
+    <button class="option-btn" onclick="selectOption('pt', this, '이사회 또는 경영진 보고용으로, 의사결정 중심으로')"><span class="opt-tag">추천</span>이사회·경영진 보고용</button>
+    <button class="option-btn" onclick="selectOption('pt', this, '변화를 아직 실감하지 못한 중간 관리자들을 설득하기 위해')"><span class="opt-tag">추천</span>중간 관리자 설득용</button>
+  </div>
+  <div class="custom-area">
+    <div class="card-label">직접 입력</div>
+    <textarea id="input-pt" placeholder="예: 우리 회사 사장님께 주간 보고할 때 쓸 내용" oninput="syncInput('pt')"></textarea>
+  </div>
+  <button class="next-btn" id="btn-pt" disabled onclick="goTo('phase-t')">다음 →</button>
+  <button class="skip-btn" onclick="skip('pt'); goTo('phase-t')">건너뛰기</button>
+</div>
+
+<div class="phase" id="phase-t">
+  <div class="progress-bar"><div class="progress-fill" style="width:95%"></div></div>
+  <div class="step-grid">
+    <div class="step-pill done"><span class="letter">P</span>Persona</div>
+    <div class="step-pill done"><span class="letter">R</span>Reference</div>
+    <div class="step-pill done"><span class="letter">O</span>Objective</div>
+    <div class="step-pill done"><span class="letter">M</span>Method</div>
+    <div class="step-pill done"><span class="letter">P</span>Perspective</div>
+    <div class="step-pill active"><span class="letter">T</span>Tuning</div>
+  </div>
+  <p class="title">T — Tuning <span style="font-weight:400; font-size:14px; color:#666">말투와 분위기</span></p>
+  <p class="subtitle">어떤 톤으로 답을 받고 싶으신가요?</p>
+  <div class="tip-box">같은 내용도 톤에 따라 읽히는 느낌이 완전히 달라집니다.</div>
+  <div class="options-grid">
+    <button class="option-btn" onclick="selectOption('t', this, '직설적이고 실용적인 톤으로, 불필요한 서론 없이')"><span class="opt-tag">추천</span>직설적·실용적</button>
+    <button class="option-btn" onclick="selectOption('t', this, '위기감을 적절히 살리되 과장 없이, 임원다운 품격 있는 언어로')"><span class="opt-tag">추천</span>위기감 + 품격</button>
+    <button class="option-btn" onclick="selectOption('t', this, '긍정적이고 기회 중심의 프레임으로, 동기부여가 되도록')"><span class="opt-tag">추천</span>기회 중심·동기부여</button>
+    <button class="option-btn" onclick="selectOption('t', this, '학술적·분석적 톤으로, 데이터와 근거를 중심으로')"><span class="opt-tag">추천</span>분석적·데이터 중심</button>
+  </div>
+  <div class="custom-area">
+    <div class="card-label">직접 입력</div>
+    <textarea id="input-t" placeholder="예: 쉽고 친근한 언어로, 50대 임원도 바로 이해할 수 있게" oninput="syncInput('t')"></textarea>
+  </div>
+  <button class="next-btn" id="btn-t" disabled onclick="buildAndShow()">프롬프트 완성 →</button>
+  <button class="skip-btn" onclick="skip('t'); buildAndShow()">건너뛰기</button>
+</div>
+
+<div class="phase" id="phase-result">
+  <div class="progress-bar"><div class="progress-fill" style="width:100%"></div></div>
+  <p class="title">완성된 프롬프트</p>
+  <p class="subtitle" style="margin-bottom:1rem;">구조화된 프롬프트와 처음 질문을 비교해 보세요.</p>
+  <div class="compare-grid">
+    <div class="compare-card before">
+      <div class="compare-label">구조 없이 질문</div>
+      <div class="compare-text">현대자동차의 변화에 있어서 임원으로서 내가 가장 먼저 해야 할 것은 무엇인가?</div>
+    </div>
+    <div class="compare-card after">
+      <div class="compare-label">PROMPT 구조화</div>
+      <div class="compare-text" id="compare-after">—</div>
+    </div>
+  </div>
+  <div class="card-label" style="margin-bottom:8px;">조립된 프롬프트 전문</div>
+  <div class="prompt-preview" id="full-prompt">—</div>
+  <button class="copy-btn" onclick="copyPrompt()">완성된 프롬프트 복사하기</button>
+  <p style="font-size:12px; color:#888; margin-bottom:1rem; text-align:center;">복사 후 Claude.ai 또는 ChatGPT에 붙여넣기 해보세요</p>
+  <button class="restart-btn" onclick="restart()">처음부터 다시 조립하기</button>
+</div>
+
+</div>
+
+<script>
+const selections = { p: '', r: '', o: '', m: '', pt: '', t: '' };
+
+function selectOption(key, btn, val) {
+  const phase = btn.closest('.phase');
+  phase.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selections[key] = val;
+  const ta = document.getElementById('input-' + key);
+  if (ta) ta.value = val;
+  const nextBtn = document.getElementById('btn-' + key);
+  if (nextBtn) nextBtn.disabled = false;
+}
+
+function syncInput(key) {
+  const ta = document.getElementById('input-' + key);
+  if (!ta) return;
+  selections[key] = ta.value.trim();
+  const nextBtn = document.getElementById('btn-' + key);
+  if (nextBtn) nextBtn.disabled = selections[key].length === 0;
+  const phase = ta.closest('.phase');
+  if (phase) phase.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+}
+
+function skip(key) {
+  const defaults = {
+    r: '(배경 정보 없음)',
+    o: '임원으로서 가장 먼저 해야 할 일을 알고 싶다',
+    m: '번호 매긴 리스트로 정리해줘',
+    pt: '협력사 임원 본인이 읽음',
+    t: '직설적이고 실용적으로'
+  };
+  if (!selections[key] && defaults[key]) selections[key] = defaults[key];
+}
+
+function goTo(phaseId) {
+  document.querySelectorAll('.phase').forEach(p => p.classList.remove('active'));
+  document.getElementById(phaseId).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function buildAndShow() {
+  const p = selections.p || '자동차 산업 전략 전문가';
+  const r = selections.r || '';
+  const o = selections.o || '임원으로서 가장 먼저 해야 할 일을 파악하고 싶다';
+  const m = selections.m || '번호 매긴 리스트로 정리해줘';
+  const pt = selections.pt || '협력사 임원 본인이 읽음';
+  const t = selections.t || '직설적이고 실용적으로';
+
+  const parts = [];
+  parts.push('당신은 ' + p + '입니다.');
+  if (r && r !== '(배경 정보 없음)') parts.push('다음 상황을 참고해 주세요: ' + r);
+  parts.push('목표: ' + o);
+  parts.push('핵심 질문: 현대자동차의 변화에 있어서 협력사 임원으로서 가장 먼저 해야 할 것은 무엇인가?');
+  parts.push('결과 형식: ' + m);
+  parts.push('독자: ' + pt);
+  parts.push('말투: ' + t);
+
+  const full = parts.join('\n\n');
+  window._builtPrompt = full;
+
+  const shortAfter = p + ' 관점 / ' + o.substring(0,20) + '... / ' + m.substring(0,15) + '...';
+  document.getElementById('compare-after').textContent = shortAfter;
+
+  const preview = document.getElementById('full-prompt');
+  preview.innerHTML = parts.map(function(p) { return '<p style="margin-bottom:0.5rem">' + p + '</p>'; }).join('');
+
+  goTo('phase-result');
+}
+
+function copyPrompt() {
+  if (window._builtPrompt) {
+    navigator.clipboard.writeText(window._builtPrompt).then(function() {
+      const btn = document.querySelector('.copy-btn');
+      const orig = btn.textContent;
+      btn.textContent = '복사 완료!';
+      btn.style.background = '#1D9E75';
+      setTimeout(function() { btn.textContent = orig; btn.style.background = '#7F77DD'; }, 2000);
+    });
+  }
+}
+
+function restart() {
+  Object.keys(selections).forEach(function(k) { selections[k] = ''; });
+  document.querySelectorAll('.option-btn').forEach(function(b) { b.classList.remove('selected'); });
+  document.querySelectorAll('textarea').forEach(function(ta) { ta.value = ''; });
+  document.querySelectorAll('.next-btn').forEach(function(b) { if (b.id && b.id.startsWith('btn-')) b.disabled = true; });
+  goTo('phase-intro');
+}
+</script>
+</body>
+</html>
